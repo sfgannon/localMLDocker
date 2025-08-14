@@ -1,0 +1,63 @@
+services:
+  ollama:
+    volumes:
+      - ollama:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+    ports:
+        - 11434:11434
+    networks:
+      mynetwork:
+
+  open-webui:
+    build:
+      context: .
+      args:
+        OLLAMA_BASE_URL: '/ollama'
+      dockerfile: Dockerfile
+    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-main}
+    container_name: open-webui
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - ollama
+    ports:
+      - ${OPEN_WEBUI_PORT-3000}:8080
+    networks:
+      mynetwork:
+    environment:
+      - 'OLLAMA_BASE_URL=http://ollama:11434'
+      - WEBUI_AUTH=False
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+  comfyui-boot:
+    stdin_open: true
+    tty: true
+    container_name: comfyui-cu124
+    ports:
+        - 8288:8188
+    volumes:
+        - comfyui:/root
+    image: yanwk/comfyui-boot:cu124-slim
+    networks:
+      mynetwork:
+    deploy:
+        resources:
+            reservations:
+                devices:
+                    - driver: nvidia
+                      count: all
+                      capabilities:
+                          - gpu
+volumes:
+  ollama: {}
+  open-webui: {}
+  comfyui: {}
+
+networks:
+  mynetwork:
